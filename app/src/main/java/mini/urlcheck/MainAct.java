@@ -63,7 +63,7 @@ public class MainAct extends AppCompatActivity {
         }
     };
 
-    class UiBroadcastReceiver extends BroadcastReceiver {
+    static class UiBroadcastReceiver extends BroadcastReceiver {
         private final MainAct mainAct;
 
         public UiBroadcastReceiver(MainAct mainAct) {
@@ -79,7 +79,7 @@ public class MainAct extends AppCompatActivity {
         }
     }
 
-    private UiBroadcastReceiver broadcastReceiver = new UiBroadcastReceiver(this);
+    private final UiBroadcastReceiver broadcastReceiver = new UiBroadcastReceiver(this);
 
     @Override
     protected void onResume() {

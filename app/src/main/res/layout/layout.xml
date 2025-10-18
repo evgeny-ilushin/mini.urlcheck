@@ -3,11 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center"
-    android:layout_marginTop="20dp"
     android:layout_marginLeft="20dp"
+    android:layout_marginTop="20dp"
     android:layout_marginRight="20dp"
     android:layout_marginBottom="20dp"
+    android:gravity="center"
     android:orientation="vertical">
 
     <ImageView
@@ -18,7 +18,7 @@
         app:srcCompat="@drawable/disconnected_bw" />
 
 
-<!-- Status -->
+    <!-- Status -->
     <TextView
         android:id="@+id/statusText"
         android:layout_width="match_parent"
@@ -28,67 +28,73 @@
         android:gravity="center"
         android:text="@string/statusText.text" />
 
-<!-- Addr -->
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical">
-
-    <TextView
-        android:id="@+id/inputAddressLabel"
-        android:layout_width="wrap_content"
+    <!-- Addr -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:labelFor="@+id/inputAddress"
-        android:layout_weight="1"
-        android:text="@string/inputAddressLabel.text" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-<!-- spacer -->
-<View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+        <TextView
+            android:id="@+id/inputAddressLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:labelFor="@+id/inputAddress"
+            android:text="@string/inputAddressLabel.text" />
 
-    <EditText
-        android:id="@+id/inputAddress"
-        android:layout_width="0dp"
+        <!-- spacer -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <EditText
+            android:id="@+id/inputAddress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="10"
+            android:autofillHints="address"
+            android:gravity="end"
+            android:inputType="text"
+            android:maxLength="260"
+            android:minHeight="48dp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- Resp code -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="10"
-        android:autofillHints="address"
-        android:gravity="end"
-        android:inputType="text"
-        android:maxLength="260"
-        android:minHeight="48dp"
-        android:singleLine="true" />
-</LinearLayout>
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-<!-- Resp code -->
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical">
+        <TextView
+            android:id="@+id/inputRespCodeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:labelFor="@+id/inputRespCode"
+            android:text="@string/inputRespCodeLabel.text" />
 
-    <TextView
-        android:id="@+id/inputRespCodeLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:labelFor="@+id/inputRespCode"
-        android:text="@string/inputRespCodeLabel.text" />
+        <!-- spacer -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
-<!-- spacer -->
-<View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
-
-    <EditText
-        android:id="@+id/inputRespCode"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="2"
-        android:autofillHints="code"
-        android:gravity="end"
-        android:inputType="number"
-        android:maxLength="3"
-        android:minHeight="48dp"
-        android:singleLine="true" />
-</LinearLayout>
+        <EditText
+            android:id="@+id/inputRespCode"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:autofillHints="code"
+            android:gravity="end"
+            android:inputType="number"
+            android:maxLength="3"
+            android:minHeight="48dp"
+            android:singleLine="true" />
+    </LinearLayout>
 
 
     <LinearLayout
@@ -104,8 +110,11 @@
             android:layout_gravity="start"
             android:text="@string/resetButton.text" />
 
-<!-- spacer -->
-<View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+        <!-- spacer -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <Button
             android:id="@+id/applyButton"
