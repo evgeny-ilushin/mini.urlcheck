@@ -109,13 +109,10 @@ public class BgService extends Service {
     }
 
     private void probe() {
-        String uiMessage = "Connecting to " + host + "...";
         HttpURLConnection connection = null;
         String reason = null;
         boolean success = false;
         try {
-            System.out.println("probing...");
-            // runOnUiThread(() -> applyStatus(uiMessage[0]));
             URL url = new URL(host);
             connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(MSECONDS_CONN_TIMEOUT);
@@ -132,8 +129,8 @@ public class BgService extends Service {
             if (connection != null) {
                 connection.disconnect();
             }
-            uiMessage = probeResult(success, reason);
         }
+        String uiMessage = probeResult(success, reason);
         Intent intent = new Intent(BG_UI_UPDATE_ACTION);
         intent.putExtra(UI_KEY_SUCCESS,  "" + success);
         intent.putExtra(UI_KEY_REASON, reason);
