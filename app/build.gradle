@@ -9,7 +9,7 @@ android {
     defaultConfig {
         applicationId 'mini.urlcheck'
         minSdk 30
-        targetSdk 30
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -29,7 +29,6 @@ android {
 }
 
 dependencies {
-
     implementation libs.appcompat
     implementation libs.material
     testImplementation libs.junit

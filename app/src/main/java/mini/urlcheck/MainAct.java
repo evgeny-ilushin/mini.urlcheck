@@ -1,13 +1,23 @@
 package mini.urlcheck;
 
+import static mini.urlcheck.BgService.UI_KEY_ADDRESS;
+import static mini.urlcheck.BgService.UI_KEY_CODE;
+import static mini.urlcheck.BgService.UI_KEY_MESSAGE;
+import static mini.urlcheck.BgService.UI_KEY_SUCCESS;
+
 import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -16,19 +26,14 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.app.NotificationCompat;
-
-import java.net.HttpURLConnection;
-import java.net.URL;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 public class MainAct extends AppCompatActivity {
-    private static final String NOTIFICATION_CHANNEL_ID = "mini.chan";
+    public static final String NOTIFICATION_CHANNEL_ID = "mini.chan";
+    public static final String BG_UI_UPDATE_ACTION = NOTIFICATION_CHANNEL_ID + ".action";
+    public static final String BG_THREAD_NAME = NOTIFICATION_CHANNEL_ID + ".thread";
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 101;
-    private static final int MAIN_NOTIFICATION_ID = 100;
-    private static final int MSECONDS_BETWEEN_PROBES = 3000; // 3s
-    private static final int MSECONDS_CONN_TIMEOUT = 2000; // 2s
-    private static final int MSECONDS_CONN_READ_TIMEOUT = 1000; // 1s
-
+    public static final int MAIN_NOTIFICATION_ID = 100;
     public static final String PREFS_NAME = "app_minipref";
     public static final String US_HOST = "HOST";
     public static final String US_CODE = "CODE";
@@ -41,23 +46,60 @@ public class MainAct extends AppCompatActivity {
     private EditText etHost;
     private EditText etCode;
     private TextView tvStatus;
-
     private ImageView imageView;
-
-    private Thread prober = null;
-    private boolean terminated = false;
-
     private NotificationManager notificationManager = null;
-    private NotificationCompat.Builder notificationBuilder = null;
+    private BgService bgService;
 
+    private ServiceConnection bgServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            BgService.LocalBinder binder = (BgService.LocalBinder) service;
+            bgService = binder.getService();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            bgService = null;
+        }
+    };
+
+    class UiBroadcastReceiver extends BroadcastReceiver {
+        private final MainAct mainAct;
+
+        public UiBroadcastReceiver(MainAct mainAct) {
+            this.mainAct = mainAct;
+        }
+
+        public void onReceive(Context context, Intent intent) {
+            String successStr = intent.getStringExtra(UI_KEY_SUCCESS);
+            String message = intent.getStringExtra(UI_KEY_MESSAGE);
+            if (message != null) {
+                mainAct.applyStatus(successStr != null && Boolean.parseBoolean(successStr), message);
+            }
+        }
+    }
+
+    private UiBroadcastReceiver broadcastReceiver = new UiBroadcastReceiver(this);
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver, new IntentFilter(BG_UI_UPDATE_ACTION));
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+    }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (prober != null) {
-            terminated = true;
-        }
+
+        stopService(new Intent(this, BgService.class));
         saveSettings();
+
         if (notificationManager != null) {
             notificationManager.cancel(MAIN_NOTIFICATION_ID);
         }
@@ -89,17 +131,21 @@ public class MainAct extends AppCompatActivity {
 
         tvStatus = findViewById(R.id.statusText);
         imageView = findViewById(R.id.imageView);
+        startWorkerService();
+    }
 
-        // Bg thread
-        Runnable probeLoop = () -> {
-            try {
-                runProbeLoop();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-        prober = new Thread(probeLoop);
-        prober.start();
+    private void startWorkerService() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.FOREGROUND_SERVICE}, NOTIFICATION_PERMISSION_REQUEST_CODE);
+        } else {
+            Intent startIntent = new Intent(this, BgService.class);
+            startIntent.putExtra(UI_KEY_ADDRESS, host);
+            startIntent.putExtra(UI_KEY_CODE, code);
+            startService(startIntent);
+        }
+
+        Intent bindIntent = new Intent(this, BgService.class);
+        bindService(bindIntent, bgServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
     private void createNotificationChannel() {
@@ -115,20 +161,6 @@ public class MainAct extends AppCompatActivity {
 
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST_CODE);
-        } else {
-            Intent intent = new Intent(this, MainAct.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-
-            notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_ni_connected)
-                    .setContentTitle("mini UrlCheck")
-                    .setContentText("Offline - disconnected")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    // Set the intent that fires when the user taps the notification.
-                    .setContentIntent(pendingIntent)
-                    .setAutoCancel(false)
-                    .setSilent(true);
         }
     }
 
@@ -137,61 +169,11 @@ public class MainAct extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted by the user
-                // ...
+                // createNotification();
             } else {
                 // Permission denied by the user
-                // ...
             }
         }
-    }
-
-    private void runProbeLoop() throws InterruptedException {
-        while (!terminated) {
-            probe();
-            Thread.sleep(MSECONDS_BETWEEN_PROBES);
-        }
-    }
-
-    private void probe() {
-        final String[] uiMessage = {"Connecting to " + host + "..."};
-        HttpURLConnection connection = null;
-        String reason = null;
-        boolean success = false;
-        try {
-            // runOnUiThread(() -> applyStatus(uiMessage[0]));
-            URL url = new URL(host);
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setConnectTimeout(MSECONDS_CONN_TIMEOUT);
-            connection.setReadTimeout(MSECONDS_CONN_READ_TIMEOUT);
-            connection.setRequestMethod("HEAD");
-            String responseCode = "" + connection.getResponseCode();
-            success = responseCode.equalsIgnoreCase(code);
-            if (!success) {
-                reason = responseCode + " <> " + code;
-            }
-        } catch (Exception ex) {
-            reason = ex.getMessage();
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-            uiMessage[0] = probeResult(success, reason);
-            runOnUiThread(() -> applyStatus(uiMessage[0]));
-        }
-    }
-
-    private String probeResult(boolean success, String reason) {
-        runOnUiThread(() -> {
-            notificationBuilder.setContentText(success ? "Online" : "Offline: " + reason);
-            notificationBuilder.setSmallIcon(success ? R.drawable.ic_ni_connected : R.drawable.ic_ni_disconnected);
-            notificationBuilder.setSilent(true);
-            imageView.setImageResource(success ? R.drawable.connected : R.drawable.disconnected);
-            if (notificationManager != null) {
-                notificationManager.notify(MAIN_NOTIFICATION_ID, notificationBuilder.build());
-            }
-        });
-        return success ? "Success!" : "Failed: " + reason;
     }
 
     private void saveSettings() {
@@ -211,17 +193,21 @@ public class MainAct extends AppCompatActivity {
     private void resetSettings() {
         etHost.setText(host = US_HOST_DEFAULT);
         etCode.setText(code = US_CODE_DEFAULT);
+        bgService.applySettings(host, code);
         saveSettings();
     }
 
     private void applySettings() {
         host = etHost.getText().toString();
         code = etCode.getText().toString();
-        applyStatus("Connecting to " + host + "...");
+        bgService.applySettings(host, code);
         saveSettings();
     }
 
-    private void applyStatus(String text) {
-        tvStatus.setText(text);
+    public void applyStatus(boolean success, String text) {
+        runOnUiThread(() -> {
+            tvStatus.setText(text);
+            imageView.setImageResource(success ? R.drawable.connected : R.drawable.disconnected);
+        });
     }
 }
