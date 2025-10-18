@@ -2,7 +2,7 @@
 
 ## What is it
 
-A simple application for continuous URL monitoring
+A simple Android application for continuous URL monitoring
 
 
 ## How to use
