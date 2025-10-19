@@ -4,8 +4,6 @@ import static mini.urlcheck.MainAct.BG_THREAD_NAME;
 import static mini.urlcheck.MainAct.BG_UI_UPDATE_ACTION;
 import static mini.urlcheck.MainAct.MAIN_NOTIFICATION_ID;
 import static mini.urlcheck.MainAct.NOTIFICATION_CHANNEL_ID;
-import static mini.urlcheck.MainAct.US_CODE_DEFAULT;
-import static mini.urlcheck.MainAct.US_HOST_DEFAULT;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -29,26 +27,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BgService extends Service {
     public static final String UI_KEY_SUCCESS = "success";
-    public static final String UI_KEY_REASON = "reason";
     public static final String UI_KEY_MESSAGE = "message";
-    public static final String UI_KEY_ADDRESS = "host";
-    public static final String UI_KEY_CODE = "code";
-
-    public static final int MSECONDS_BETWEEN_PROBES = 3000; // 3s
-    public static final int MSECONDS_CONN_TIMEOUT = 2000; // 2s
-    public static final int MSECONDS_CONN_READ_TIMEOUT = 1000; // 1s
-
-    private String host = US_HOST_DEFAULT;
-    private String code = US_CODE_DEFAULT;
 
     private HandlerThread handlerThread = null;
     private boolean terminated = false;
-
     private AtomicBoolean lastState = null;
 
     private NotificationManager notificationManager = null;
     private NotificationCompat.Builder notificationBuilder = null;
-
+    private Settings settings;
     private final IBinder binder = new LocalBinder();
 
     public class LocalBinder extends Binder {
@@ -57,9 +44,8 @@ public class BgService extends Service {
         }
     }
 
-    public void applySettings(String host, String code) {
-        this.host = host;
-        this.code = code;
+    public void applySettings(Settings settings) {
+        this.settings = settings;
     }
 
     @Nullable
@@ -72,8 +58,6 @@ public class BgService extends Service {
     public int onStartCommand(Intent intent,
                                int flags,
                                int startId) {
-        host = intent.getStringExtra(UI_KEY_ADDRESS);
-        code = intent.getStringExtra(UI_KEY_CODE);
         notificationBuilder = createNotificationBuilder();
         notificationManager = getSystemService(NotificationManager.class);
         notificationManager.notify(MAIN_NOTIFICATION_ID, notificationBuilder.build());
@@ -82,7 +66,7 @@ public class BgService extends Service {
             type = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
         }
         ServiceCompat.startForeground(this, MAIN_NOTIFICATION_ID, notificationBuilder.build(), type);
-        return START_NOT_STICKY; // super.onStartCommand(intent, flags, startId);
+        return START_NOT_STICKY;
     }
 
     @Override
@@ -102,9 +86,12 @@ public class BgService extends Service {
     }
 
     private void runProbeLoop() throws InterruptedException {
+        while (!terminated && settings == null) {
+            Thread.sleep(Settings.MSEC_SLEEP_DEFAULT);
+        }
         while (!terminated) {
             probe();
-            Thread.sleep(MSECONDS_BETWEEN_PROBES);
+            Thread.sleep(settings.getCycleDuration());
         }
     }
 
@@ -112,16 +99,16 @@ public class BgService extends Service {
         HttpURLConnection connection = null;
         String reason = null;
         boolean success = false;
+        long reqTime = System.currentTimeMillis();
         try {
-            URL url = new URL(host);
+            URL url = new URL(settings.getHost());
             connection = (HttpURLConnection) url.openConnection();
-            connection.setConnectTimeout(MSECONDS_CONN_TIMEOUT);
-            connection.setReadTimeout(MSECONDS_CONN_READ_TIMEOUT);
+            connection.setConnectTimeout(settings.getNetworkTimeout());
+            connection.setReadTimeout(settings.getNetworkTimeout());
             connection.setRequestMethod("HEAD");
-            String responseCode = "" + connection.getResponseCode();
-            success = responseCode.equalsIgnoreCase(code);
+            success = connection.getResponseCode() == settings.getCode();
             if (!success) {
-                reason = responseCode + " <> " + code;
+                reason = connection.getResponseCode() + " <> " + settings.getCode();
             }
         } catch (Exception ex) {
             reason = ex.getMessage();
@@ -129,20 +116,20 @@ public class BgService extends Service {
             if (connection != null) {
                 connection.disconnect();
             }
+            reqTime = System.currentTimeMillis() - reqTime;
         }
-        String uiMessage = probeResult(success, reason);
+        String uiMessage = probeResult(success, reason, reqTime);
         Intent intent = new Intent(BG_UI_UPDATE_ACTION);
         intent.putExtra(UI_KEY_SUCCESS,  "" + success);
-        intent.putExtra(UI_KEY_REASON, reason);
         intent.putExtra(UI_KEY_MESSAGE, uiMessage);
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
-    private String probeResult(boolean success, String reason) {
+    private String probeResult(boolean success, String reason, long reqTime) {
         boolean silent = lastState == null || lastState.get() == success;
         if (notificationBuilder != null) {
             notificationBuilder.setContentTitle(success ? "Connected" : "Disconnected");
-            notificationBuilder.setContentText(success ? (host + " is available (" + code + ")") : reason);
+            notificationBuilder.setContentText(success ? (settings.getHost() + " is available (" + settings.getCode() + ")") : reason);
             notificationBuilder.setSmallIcon(success ? R.drawable.ic_ni_connected : R.drawable.ic_ni_disconnected);
             notificationBuilder.setSilent(silent);
             if (notificationManager != null) {
@@ -154,7 +141,7 @@ public class BgService extends Service {
         } else {
             lastState.set(success);
         }
-        return success ? "Success!" : "Failed: " + reason;
+        return success ? "Success, " + reqTime + " ms" : "Failed after " + reqTime + " ms: " + reason;
     }
 
 

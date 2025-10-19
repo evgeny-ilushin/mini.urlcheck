@@ -9,7 +9,12 @@
     <string name="inputAddressLabel.text">Probe URL:</string>
     <string name="inputRespCodeLabel.text">Expect HTTP code:</string>
 
-    <string name="resetButton.text">Reset defaults</string>
+    <string name="resetButton.text">Reset</string>
+    <string name="moreButton.text">More...</string>
+    <string name="lessButton.text">Less</string>
     <string name="applyButton.text">Apply</string>
     <string name="exitButton.text">Exit</string>
+
+    <string name="inputCycleLabel.text">Probe cycle duration, seconds</string>
+    <string name="inputTimeoutLabel.text">Connection timeout, seconds</string>
 </resources>
