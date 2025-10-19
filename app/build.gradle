@@ -4,6 +4,7 @@ plugins {
 
 android {
     namespace 'mini.urlcheck'
+    compileSdk 36
 
     defaultConfig {
         applicationId 'mini.urlcheck'
