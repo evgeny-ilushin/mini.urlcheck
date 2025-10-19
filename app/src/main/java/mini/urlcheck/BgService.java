@@ -29,7 +29,6 @@ public class BgService extends Service {
     public static final String UI_KEY_SUCCESS = "success";
     public static final String UI_KEY_MESSAGE = "message";
 
-    private HandlerThread handlerThread = null;
     private boolean terminated = false;
     private AtomicBoolean lastState = null;
 
@@ -61,17 +60,13 @@ public class BgService extends Service {
         notificationBuilder = createNotificationBuilder();
         notificationManager = getSystemService(NotificationManager.class);
         notificationManager.notify(MAIN_NOTIFICATION_ID, notificationBuilder.build());
-        int type = 0;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            type = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
-        }
-        ServiceCompat.startForeground(this, MAIN_NOTIFICATION_ID, notificationBuilder.build(), type);
+        ServiceCompat.startForeground(this, MAIN_NOTIFICATION_ID, notificationBuilder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         return START_NOT_STICKY;
     }
 
     @Override
     public void onCreate() {
-        handlerThread = new HandlerThread(BG_THREAD_NAME, android.os.Process.THREAD_PRIORITY_BACKGROUND) {
+        HandlerThread handlerThread = new HandlerThread(BG_THREAD_NAME, android.os.Process.THREAD_PRIORITY_BACKGROUND) {
             @Override
             public void run() {
                 try {
@@ -85,6 +80,7 @@ public class BgService extends Service {
         handlerThread.start();
     }
 
+    @SuppressWarnings("BusyWait")
     private void runProbeLoop() throws InterruptedException {
         while (!terminated && settings == null) {
             Thread.sleep(Settings.MSEC_SLEEP_DEFAULT);

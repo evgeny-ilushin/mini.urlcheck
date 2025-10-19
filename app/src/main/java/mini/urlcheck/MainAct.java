@@ -48,7 +48,7 @@ public class MainAct extends AppCompatActivity {
     private Settings settings;
     private boolean moreSettings = false;
 
-    private ServiceConnection bgServiceConnection = new ServiceConnection() {
+    private final ServiceConnection bgServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             BgService.LocalBinder binder = (BgService.LocalBinder) service;
@@ -172,7 +172,7 @@ public class MainAct extends AppCompatActivity {
         notificationManager = getSystemService(NotificationManager.class);
         notificationManager.createNotificationChannel(channel);
 
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST_CODE);
         }
     }
@@ -181,11 +181,11 @@ public class MainAct extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+            /*
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // createNotification();
             } else {
-                // Permission denied by the user
             }
+            */
         }
     }
 
@@ -199,9 +199,9 @@ public class MainAct extends AppCompatActivity {
     }
     private void updateUiFromSettings() {
         etHost.setText(settings.getHost());
-        etCode.setText("" + settings.getCode());
-        etCycle.setText("" + settings.getCycleDuration()/Settings.MSEC_SCALE_FACTOR);
-        etTimeout.setText("" + settings.getNetworkTimeout()/Settings.MSEC_SCALE_FACTOR);
+        etCode.setText(getString(R.string.inputNum_text, settings.getCode()));
+        etCycle.setText(getString(R.string.inputNum_text, settings.getCycleDuration()/Settings.MSEC_SCALE_FACTOR));
+        etTimeout.setText(getString(R.string.inputNum_text, settings.getNetworkTimeout()/Settings.MSEC_SCALE_FACTOR));
     }
 
     private void resetSettings() {
@@ -218,6 +218,7 @@ public class MainAct extends AppCompatActivity {
                     Settings.MSEC_SCALE_FACTOR * Integer.parseInt(etCycle.getText().toString()),
                     Settings.MSEC_SCALE_FACTOR * Integer.parseInt(etTimeout.getText().toString()));
             bgService.applySettings(settings);
+            updateUiFromSettings();
             saveSettings();
         }
         catch (Exception ex) {

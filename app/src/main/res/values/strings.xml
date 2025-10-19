@@ -17,4 +17,6 @@
 
     <string name="inputCycleLabel.text">Probe cycle duration, seconds</string>
     <string name="inputTimeoutLabel.text">Connection timeout, seconds</string>
+
+    <string name="inputNum.text">%1$d</string>
 </resources>
